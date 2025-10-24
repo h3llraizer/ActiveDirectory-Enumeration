@@ -12,15 +12,6 @@
 #pragma comment(lib, "wldap32.lib")
 #pragma comment(lib, "Netapi32.lib")
 
-//BOOL GetSiteName()
-//{
-//
-//    DsGetDcNameA;
-//    DsGetSiteNameW;
-//
-//    return TRUE;
-//}
-
 BOOL GetDomainSites(LPCWSTR domainController)
 {
     ULONG numberOfSites = 0;
