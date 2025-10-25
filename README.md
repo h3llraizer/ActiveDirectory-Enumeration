@@ -1,6 +1,6 @@
 # ActiveDirectory-Enumeration
 
-This serves as, what I hope to be, a helpful template for others to clone and aid them in enumerating Active Directory from a domain'd machine.
+This serves as, what I hope to be, a helpful template for others to clone and aid them in enumerating Active Directory from a domain'd machine, using purely C.
 
 By default, the code:
 - loads required DLL's and resolve the exported functions for making LDAP queries.

@@ -412,6 +412,20 @@ int wmain(int argc, wchar_t** argv, wchar_t** envp)
         wprintf(L"[+] DomainController: %ls \n", domain.DC);
     }
 
+    // enumerate forest
+    // 1. Perform the GetDomainSites to get the number of sites and then allocate an array with length how many sites returned
+    // e.g.    GetDomainSites returns: ULONG numberOfSites = 2;
+    //          LPWSTR* siteNames = NULL;
+    // struct {
+    //  LPWSTR[numberOfSites] sites
+    // } Forest;
+    // then copy the siteNames to the sites Forest struct member
+    // 
+    // this works because the number of sites in a forest is almost always constant other than during domain migration periods which are rare and likely not to be encountered during an authorised engagement
+    // 
+    // find a way to validate the forest for subnets (bolster full AD recon)
+    // 
+    // 
     //GetDomainSites(domain.DC); // enumerate the domain sites
 
     if (!BindLdap(domain.FQDN, &ldSession.ld, ldSession.version, &ldSession.result)) {
