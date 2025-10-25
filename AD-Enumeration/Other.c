@@ -3,10 +3,11 @@
 #include <phnt_windows.h>
 #include <stdio.h>
 #include "AD_DS_defs.h"
+#include "Structs.h"
 #include "Other.h"
 
-extern PFN_NetShareEnum pNetShareEnum;
-extern PFN_NetApiBufferFree pNetApiBufferFree;
+
+extern NetApi32 NetApi;
 
 
 BOOL EnumerateShares(LPWSTR server)
@@ -15,7 +16,7 @@ BOOL EnumerateShares(LPWSTR server)
     LPSHARE_INFO_1 pBuf = NULL;
 
     DWORD entriesRead = 0, totalEntries = 0, resume = 0;
-    DWORD dwResult = pNetShareEnum(server, 1, &pBuf, MAX_PREFERRED_LENGTH, &entriesRead, &totalEntries, &resume);
+    DWORD dwResult = NetApi.NetShareEnum(server, 1, &pBuf, MAX_PREFERRED_LENGTH, &entriesRead, &totalEntries, &resume);
 
     if (dwResult == NERR_Success && pBuf != NULL)
     {
@@ -42,7 +43,7 @@ BOOL EnumerateShares(LPWSTR server)
             wprintf(L"\n");
         }
 
-        pNetApiBufferFree(pBuf);
+        NetApi.NetApiBufferFree(pBuf);
     }
     else {
         wprintf(L"[!] Error getting shares: %d \n", dwResult);

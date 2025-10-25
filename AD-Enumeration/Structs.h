@@ -1,6 +1,35 @@
 
 #include "AD_DS_defs.h"
 
+// Used for querying domain controllers, domain join info, and memory management for NetAPI buffers. - Netapi32.dll
+typedef struct {
+    PFN_NetApiBufferFree NetApiBufferFree;
+    PFN_DsGetDcSiteCoverageW DsGetDcSiteCoverageW;
+    PFN_NetGetJoinInformation NetGetJoinInformation;
+    PFN_NetGetJoinableOUs NetGetJoinableOUs;
+    PFN_NetShareEnum NetShareEnum;
+} NetApi32;
+
+
+// Used for connecting to LDAP servers, performing searches, and working with LDAP messages. - wldap32.dll
+typedef struct {
+    PFN_ldap_initW ldap_initW;
+    PFN_ldap_set_option ldap_set_option;
+    PFN_ldap_bind_sW ldap_bind_sW;
+    PFN_ldap_unbind ldap_unbind;
+    PFN_ldap_search_sW ldap_search_sW;
+    PFN_ldap_first_entry ldap_first_entry;
+    PFN_ldap_first_attributeW ldap_first_attributeW;
+    PFN_ldap_next_entry ldap_next_entry;
+    PFN_ldap_get_values_lenW ldap_get_values_lenW;
+    PFN_ldap_get_dnW ldap_get_dnW;
+    PFN_ldap_value_free_len ldap_value_free_len;
+    PFN_ldap_next_attributeW ldap_next_attributeW;
+    PFN_ldap_msgfree ldap_msgfree;
+    PFN_ldap_memfree ldap_memfree;
+    PFN_ber_free ber_free; // Used for freeing BER elements (BerElement*) returned by some LDAP functions
+} WLdap32;
+
 typedef struct {
     wchar_t MachineName[MAX_PATH];  // the hostname of the local machine e.g. DESKTOP-43J4R
     wchar_t Username[MAX_PATH];     // the username of the current user e.g. j.smith
