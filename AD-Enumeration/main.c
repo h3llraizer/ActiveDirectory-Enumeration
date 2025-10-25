@@ -378,6 +378,7 @@ int wmain(int argc, wchar_t** argv, wchar_t** envp)
 
     if (!GetVariableValueFromName(&envp, L"COMPUTERNAME", &local.MachineName))
     {
+        wprintf(L"[!] Could not get machine name from process parameters block.\n");  // this should almost never happen
         return 1;
     }
 
@@ -385,6 +386,7 @@ int wmain(int argc, wchar_t** argv, wchar_t** envp)
 
     if (!GetVariableValueFromName(&envp, L"USERNAME", &local.Username))
     {
+        wprintf(L"[!] Could not get username from process parameters block.\n");  // this should almost never happen
         return 1;
     }
 

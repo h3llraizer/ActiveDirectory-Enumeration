@@ -12,12 +12,10 @@ By default, the code:
 # Extra Features
 - Shared resource (e.g. File Share) enumeration - this feature does not always require LDAP binding (most shared resources are powered by SMB)
 
-
 ![Alt text for the image](enum.png)
 
 # Upcoming
 - Forest enumeration
 - Subdomain handling
 - Compile for DLL
-- No CRT dependancy
 - JSON formatting
