@@ -1,4 +1,6 @@
 
+#include "AD_DS_defs.h"
+
 typedef struct {
     wchar_t MachineName[MAX_PATH];  // the hostname of the local machine e.g. DESKTOP-43J4R
     wchar_t Username[MAX_PATH];     // the username of the current user e.g. j.smith

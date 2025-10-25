@@ -1,19 +1,26 @@
 #pragma once
-#include <windows.h>
-#include <stdio.h>
-#include <lmserver.h>
-#include <lm.h>
+#define PHNT_VERSION PHNT_WINDOWS_11
+#include <phnt_windows.h>
+#include <winldap.h>
 #include <wtsapi32.h>
+#include <dsgetdc.h>
+#include <winber.h>
+#include <stdio.h>
+#include "AD_DS_defs.h"
 #include "Other.h"
 
-#pragma comment(lib, "Wtsapi32.lib")
+//#pragma comment(lib, "Wtsapi32.lib")
+
+extern PFN_NetShareEnum pNetShareEnum;
+extern PFN_NetApiBufferFree pNetApiBufferFree;
+
 
 BOOL EnumerateShares(LPWSTR server)
 {
     LPSHARE_INFO_1 pBuf = NULL;
 
     DWORD entriesRead = 0, totalEntries = 0, resume = 0;
-    DWORD dwResult = NetShareEnum(server, 1, &pBuf, MAX_PREFERRED_LENGTH, &entriesRead, &totalEntries, &resume);
+    DWORD dwResult = pNetShareEnum(server, 1, &pBuf, MAX_PREFERRED_LENGTH, &entriesRead, &totalEntries, &resume);
 
     if (dwResult == NERR_Success && pBuf != NULL)
     {
@@ -40,83 +47,83 @@ BOOL EnumerateShares(LPWSTR server)
             wprintf(L"\n");
         }
 
-        NetApiBufferFree(pBuf);
+        pNetApiBufferFree(pBuf);
     }
     else {
         wprintf(L"Error getting shares: %d \n", dwResult);
     }
 }
 
-BOOL EnumActiveLoginSessionsViaSMB(LPWSTR server)
-{
-    LPSESSION_INFO_0 pBuf = NULL;
-    DWORD entriesRead = 0, totalEntries = 0, resume = 0;
+//BOOL EnumActiveLoginSessionsViaSMB(LPWSTR server)
+//{
+//    LPSESSION_INFO_0 pBuf = NULL;
+//    DWORD entriesRead = 0, totalEntries = 0, resume = 0;
+//
+//    NET_API_STATUS status = pNetSessionEnum(
+//        server,  // server name
+//        NULL,  // UncClientName required when targetting a specfic session - NULL enumerates all sessions
+//        L"b.jones",
+//        0,
+//        (LPBYTE*)&pBuf,
+//        MAX_PREFERRED_LENGTH,
+//        &entriesRead,
+//        &totalEntries,
+//        &resume
+//    );
+//
+//    if (status == NERR_Success && pBuf != NULL) {
+//        for (DWORD i = 0; i < entriesRead; i++) {
+//            wprintf(L"Computer: %s\n",
+//                pBuf[i].sesi0_cname);
+//                //pBuf[i].sesi10_cname);
+//        }
+//        pNetApiBufferFree(pBuf);
+//    }
+//    else {
+//        wprintf(L"Error: %lu\n", status);
+//        return FALSE;
+//    }
+//
+//    return TRUE;
+//}
 
-    NET_API_STATUS status = NetSessionEnum(
-        server,  // server name
-        NULL,  // UncClientName required when targetting a specfic session - NULL enumerates all sessions
-        L"b.jones",
-        0,
-        (LPBYTE*)&pBuf,
-        MAX_PREFERRED_LENGTH,
-        &entriesRead,
-        &totalEntries,
-        &resume
-    );
-
-    if (status == NERR_Success && pBuf != NULL) {
-        for (DWORD i = 0; i < entriesRead; i++) {
-            wprintf(L"Computer: %s\n",
-                pBuf[i].sesi0_cname);
-                //pBuf[i].sesi10_cname);
-        }
-        NetApiBufferFree(pBuf);
-    }
-    else {
-        wprintf(L"Error: %lu\n", status);
-        return FALSE;
-    }
-
-    return TRUE;
-}
-
-int EnumActiveLoginSessionsViaWTS()
-{
-    PWTS_SESSION_INFO pSessions = NULL;
-    DWORD count = 0;
-
-    if (WTSEnumerateSessions(
-        L"\\DC01",
-        0,
-        1,
-        &pSessions,
-        &count)) {
-
-        for (DWORD i = 0; i < count; i++) {
-            LPTSTR pUser = NULL;
-            DWORD bytes;
-
-            if (WTSQuerySessionInformation(
-                WTS_CURRENT_SERVER_HANDLE,
-                pSessions[i].SessionId,
-                WTSUserName,
-                &pUser,
-                &bytes)) {
-                if (pUser && *pUser) {
-                    wprintf(L"Session %d: User %s\n",
-                        pSessions[i].SessionId, pUser);
-                }
-                WTSFreeMemory(pUser);
-            }
-        }
-        WTSFreeMemory(pSessions);
-    }
-    else {
-        wprintf(L"WTSEnumerateSessions failed: %lu\n", GetLastError());
-    }
-
-    return 0;
-}
+//int EnumActiveLoginSessionsViaWTS()
+//{
+//    PWTS_SESSION_INFO pSessions = NULL;
+//    DWORD count = 0;
+//
+//    if (WTSEnumerateSessions(
+//        L"\\DC01",
+//        0,
+//        1,
+//        &pSessions,
+//        &count)) {
+//
+//        for (DWORD i = 0; i < count; i++) {
+//            LPTSTR pUser = NULL;
+//            DWORD bytes;
+//
+//            if (WTSQuerySessionInformation(
+//                WTS_CURRENT_SERVER_HANDLE,
+//                pSessions[i].SessionId,
+//                WTSUserName,
+//                &pUser,
+//                &bytes)) {
+//                if (pUser && *pUser) {
+//                    wprintf(L"Session %d: User %s\n",
+//                        pSessions[i].SessionId, pUser);
+//                }
+//                WTSFreeMemory(pUser);
+//            }
+//        }
+//        WTSFreeMemory(pSessions);
+//    }
+//    else {
+//        wprintf(L"WTSEnumerateSessions failed: %lu\n", GetLastError());
+//    }
+//
+//    return 0;
+//}
 
 //PWCHAR filter = L"(objectClass=computer)";
 //PWCHAR attrs[] = { L"cn", L"dNSHostName", L"operatingSystem", L"operatingSystemVersion", L"lastLogonTimestamp", L"userAccountControl", NULL};

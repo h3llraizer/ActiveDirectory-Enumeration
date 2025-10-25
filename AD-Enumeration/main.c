@@ -1,32 +1,61 @@
-#include <windows.h>
-#include <stdio.h>      // Standard I/O - printf etc
-#include <winldap.h>    // LDAP Data-Structures
-#include <dsgetdc.h>    // Query domain controller
-#include <winber.h>     // parse ldap query results
-#include <lm.h>         // 
+#define PHNT_VERSION PHNT_WINDOWS_11
+#include <phnt_windows.h>
+#include <phnt.h>
+#include <lm.h>
+#include <winldap.h>
 #include <wtsapi32.h>
+#include <dsgetdc.h>
+#include <winber.h>
+
+#include <stdio.h> // Standard I/O library - printf etc
+
+
+//"wldap32.dll"
+//"netapi32.dll"
+//"wtsapi32.dll"
 
 #include "Parser.h"
 #include "Other.h"
 #include "Structs.h"
+#include "AD_DS_defs.h"
 
-#pragma comment(lib, "wldap32.lib")
-#pragma comment(lib, "Netapi32.lib")
+//typedef unsigned long ULONG;
+//typedef unsigned long DWORD;
 
-//BOOL GetSiteName()
-//{
-//
-//    DsGetDcNameA;
-//    DsGetSiteNameW;
-//
-//    return TRUE;
-//}
+// Used for querying domain controllers, domain join info, and memory management for NetAPI buffers. - Netapi32.dll
+PFN_NetApiBufferFree pNetApiBufferFree;
+PFN_DsGetDcSiteCoverageW pDsGetDcSiteCoverageW;
+PFN_NetGetJoinInformation pNetGetJoinInformation;
+PFN_NetGetJoinableOUs pNetGetJoinableOUs;
+PFN_NetShareEnum pNetShareEnum;
+
+
+// Used for connecting to LDAP servers, performing searches, and working with LDAP messages. - wldap32.dll
+PFN_ldap_initW pldap_initW;
+PFN_ldap_set_option pldap_set_option;
+PFN_ldap_bind_sW pldap_bind_sW;
+PFN_ldap_unbind pldap_unbind;
+PFN_ldap_search_sW pldap_search_sW;
+PFN_ldap_first_entry pldap_first_entry;
+PFN_ldap_first_attributeW pldap_first_attributeW;
+PFN_ldap_next_entry pldap_next_entry;
+PFN_ldap_get_values_lenW pldap_get_values_lenW;
+PFN_ldap_get_dnW pldap_get_dnW;
+PFN_ldap_value_free_len pldap_value_free_len;
+PFN_ldap_next_attributeW pldap_next_attributeW;
+PFN_ldap_msgfree pldap_msgfree;
+PFN_ldap_memfree pldap_memfree;
+
+// Used for freeing BER elements (BerElement*) returned by some LDAP functions. - wldap32.dll
+PFN_ber_free pber_free;
+
+
 
 BOOL GetDomainSites(LPCWSTR domainController)
 {
     ULONG numberOfSites = 0;
     LPWSTR* siteNames = NULL;
-    DWORD result = DsGetDcSiteCoverageW(domainController, &numberOfSites, &siteNames);
+    DWORD result = pDsGetDcSiteCoverageW(domainController, &numberOfSites, &siteNames);
 
     wprintf(L"Number of sites: %lu \n", numberOfSites);
 
@@ -35,7 +64,7 @@ BOOL GetDomainSites(LPCWSTR domainController)
         {
             wprintf(L"%ls \n", siteNames[i]);
         }
-        NetApiBufferFree(siteNames);
+        pNetApiBufferFree(siteNames);
     return numberOfSites;
 }
 
@@ -51,7 +80,7 @@ BOOL ConfirmDomainJoin(LPCWSTR domainName)
 
     LPWSTR* nameBuffer = NULL;
     NETSETUP_JOIN_STATUS joinStatus;
-    NET_API_STATUS dwResult = NetGetJoinInformation(domainName, &nameBuffer, &joinStatus);
+    NET_API_STATUS dwResult = pNetGetJoinInformation(domainName, &nameBuffer, &joinStatus);
     if (dwResult != NERR_Success)
     {
         wprintf(L"[!] Failed to get domain join info. Error: %lu \n", dwResult);
@@ -80,7 +109,7 @@ BOOL ConfirmDomainJoin(LPCWSTR domainName)
     }
 
     if (nameBuffer)
-        NetApiBufferFree(nameBuffer);
+        pNetApiBufferFree(nameBuffer);
 
     return joined;
 }
@@ -96,7 +125,7 @@ void GetJoinableOUs(LPCWSTR domainController, LPCWSTR domainName)
 
     DWORD ouCount = 0;
     LPWSTR* ous = NULL;
-    NET_API_STATUS dwResult = NetGetJoinableOUs(
+    NET_API_STATUS dwResult = pNetGetJoinableOUs(
         domainController,
         domainName,
         NULL,
@@ -115,26 +144,26 @@ void GetJoinableOUs(LPCWSTR domainController, LPCWSTR domainName)
         wprintf(L"%ls\n", ous[i]);
     }
 
-    NetApiBufferFree(ous);
+    pNetApiBufferFree(ous);
 }
 
 BOOL BindLdap(PWCHAR domainName, LDAP** ld, ULONG version, ULONG* result)
 {
     // Connect to the default LDAP server (local domain controller)
-    *ld = ldap_initW(domainName, LDAP_PORT); // use LDAP_SSL_PORT for LDAPS
+    *ld = pldap_initW(domainName, LDAP_PORT); // use LDAP_SSL_PORT for LDAPS
     if (*ld == NULL) {
         wprintf(L"[!] ldap_init failed\n");
         return FALSE;
     }
 
     // Set LDAP version
-    ldap_set_option(*ld, LDAP_OPT_PROTOCOL_VERSION, (void*)&version);
+    pldap_set_option(*ld, LDAP_OPT_PROTOCOL_VERSION, (void*)&version);
 
     // Simple bind (use current Windows credentials if NULL/NULL)
-    *result = ldap_bind_sW(*ld, NULL, NULL, LDAP_AUTH_NEGOTIATE);
+    *result = pldap_bind_sW(*ld, NULL, NULL, LDAP_AUTH_NEGOTIATE);
     if (*result != LDAP_SUCCESS) {
         wprintf(L"[!] ldap_bind_s failed: %lu\n", *result);
-        ldap_unbind(*ld);
+        pldap_unbind(*ld);
         return FALSE;
     }
 
@@ -143,7 +172,7 @@ BOOL BindLdap(PWCHAR domainName, LDAP** ld, ULONG version, ULONG* result)
 
 BOOL SearchLdap(LDAP* ld, PWCHAR base, PWCHAR searchFilter, PWCHAR* searchAttributes, ULONG* result, LDAPMessage* res)
 {
-    *result = ldap_search_sW(
+    *result = pldap_search_sW(
         ld,  // LDAP session handle *required*
         base,  //  contains the distinguished name of the entry at which to start the search.
         LDAP_SCOPE_SUBTREE,  // Specifies one of the following values to indicate the search scope. search entire tree
@@ -171,37 +200,37 @@ BOOL ParseLdapMessage(LDAP* ld, LDAPMessage* res){
     }
 
     LDAPMessage* entry = NULL;
-    for (entry = ldap_first_entry(ld, res); entry != NULL; entry = ldap_next_entry(ld, entry))
+    for (entry = pldap_first_entry(ld, res); entry != NULL; entry = pldap_next_entry(ld, entry))
     {
-        PWCHAR dn = ldap_get_dnW(ld, entry);
+        PWCHAR dn = pldap_get_dnW(ld, entry);
         //wprintf(L"%ls", dn);
-        ldap_memfree(dn);
+        pldap_memfree(dn);
 
         // Attributes
         BerElement* ber = NULL;
-        PWCHAR attr = ldap_first_attributeW(ld, entry, &ber);
+        PWCHAR attr = pldap_first_attributeW(ld, entry, &ber);
         while (attr != NULL)
         {
-            struct berval** vals = ldap_get_values_lenW(ld, entry, attr);
+            struct berval** vals = pldap_get_values_lenW(ld, entry, attr);
             if (vals != NULL)
             {
                 for (int i = 0; vals[i] != NULL; i++)
                 {
                     //wprintf(L"%ls : %hs", attr, vals[i]->bv_val);
-                    wprintf(L"%hs \n", vals[i]->bv_val);
+                    wprintf(L"\t%hs \n", vals[i]->bv_val);
 
                 }
-                ldap_value_free_len(vals);
+                pldap_value_free_len(vals);
             }
-            ldap_memfree(attr);
-            attr = ldap_next_attributeW(ld, entry, ber);
+            pldap_memfree(attr);
+            attr = pldap_next_attributeW(ld, entry, ber);
             //wprintf(L"\n");
         }
-        if (ber != NULL) ber_free(ber, 0);
+        if (ber != NULL) pber_free(ber, 0);
         //wprintf(L"\n");
     }
 
-    ldap_msgfree(res);
+    pldap_msgfree(res);
 
     return TRUE;
 }
@@ -243,7 +272,7 @@ BOOL GetLocalMachineGroupMemberships(LDAPSession* session, Domain* domain, Local
     // query local users' group memberships - domain users group ommitted
     LDAPQuery localMachineGroupsMemberQuery = { .base = { 0 }, .searchFilter = { 0 }, .searchAttributes = {L"memberOf"}, .response = NULL };
 
-    swprintf_s(localMachineGroupsMemberQuery.base, MAX_PATH, L"DC=%ls,DC=%ls", domain->SLD, domain->TLD);  // format the domain parts - in future add handling for subdomain (e.g. branch.domain.com)
+    swprintf_s(localMachineGroupsMemberQuery.base, MAX_PATH, L"DC=%ls,DC=%ls", domain->SLD, domain->TLD);  // format the domain elements - in future add handling for subdomain (e.g. branch.domain.com)
 
     wprintf(L"[i] Query Base: %ws \n", localMachineGroupsMemberQuery.base);
 
@@ -268,12 +297,120 @@ EndOfFunction:
     return success;
 }
 
+
+BOOL GetDomainUsers(LDAPSession* session, Domain* domain)
+{
+    BOOL success = FALSE;
+    // query local users' group memberships - domain users group ommitted
+    LDAPQuery localMachineGroupsMemberQuery = { .base = { 0 }, .searchFilter = { 0 }, .searchAttributes = {L"sAMAccountName"}, .response = NULL };
+
+    swprintf_s(localMachineGroupsMemberQuery.base, MAX_PATH, L"DC=%ls,DC=%ls", domain->SLD, domain->TLD);  // format the domain elements - in future add handling for subdomain (e.g. branch.domain.com)
+
+    wprintf(L"[i] Query Base: %ws \n", localMachineGroupsMemberQuery.base);
+
+    swprintf_s(localMachineGroupsMemberQuery.searchFilter, MAX_PATH, L"(&(objectCategory=person)(objectClass=user)(!(objectClass=computer)))");
+
+    wprintf(L"[i] SearchFilter: %ls \n", localMachineGroupsMemberQuery.searchFilter);
+
+    if (!SearchLdap(session->ld, localMachineGroupsMemberQuery.base, localMachineGroupsMemberQuery.searchFilter, localMachineGroupsMemberQuery.searchAttributes, &session->result, &localMachineGroupsMemberQuery.response)) {
+        goto EndOfFunction;
+    }
+
+    wprintf(L"[+] LDAP Search Successful.\n");
+
+    if (!ParseLdapMessage(session->ld, localMachineGroupsMemberQuery.response))
+    {
+        goto EndOfFunction;
+    }
+
+    success = TRUE;
+
+EndOfFunction:
+    return success;
+}
+
+BOOL ResolveNetApiFunctions()
+{
+    HMODULE hNetapi32 = LoadLibraryW(L"Netapi32.dll");
+    if (hNetapi32 == NULL)
+    {
+        wprintf(L"Failed to resolve Netapi32.dll. Error: %d \n", GetLastError());
+    }
+
+    struct { const char* name; FARPROC* ptr; } functions[] = {
+        { "NetApiBufferFree", (FARPROC*)&pNetApiBufferFree },
+        { "DsGetDcSiteCoverageW", (FARPROC*)&pDsGetDcSiteCoverageW },
+        { "NetGetJoinInformation", (FARPROC*)&pNetGetJoinInformation },
+        { "NetGetJoinableOUs", (FARPROC*)&pNetGetJoinableOUs },
+        { "NetShareEnum", (FARPROC*)&pNetShareEnum}
+    };
+
+    for (size_t i = 0; i < sizeof(functions) / sizeof(functions[0]); i++) {
+        *functions[i].ptr = GetProcAddress(hNetapi32, functions[i].name);
+        if (*functions[i].ptr == NULL) {
+            printf("[!] Could not resolve function address for %s. Error: %d\n",
+                functions[i].name, GetLastError());
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
+BOOL ResolveWLdapFunctions()
+{
+    HMODULE hWldap32 = LoadLibraryW(L"wldap32.dll");
+    if (hWldap32 == NULL)
+    {
+        wprintf(L"Could not resolve wldap32.dll. Error: %d \n", GetLastError());
+    }
+
+    struct { const char* name; FARPROC* ptr; } functions[] = {
+        { "ldap_initW", (FARPROC*)&pldap_initW },
+        { "ldap_set_option", (FARPROC*)&pldap_set_option },
+        { "ldap_bind_sW", (FARPROC*)&pldap_bind_sW },
+        { "ldap_unbind", (FARPROC*)&pldap_unbind },
+        { "ldap_first_entry", (FARPROC*)&pldap_first_entry },
+        { "ldap_first_attributeW", (FARPROC*)&pldap_first_attributeW },
+        { "ldap_next_entry", (FARPROC*)&pldap_next_entry},
+        { "ldap_get_values_lenW", (FARPROC*)&pldap_get_values_lenW },
+        { "ldap_get_dnW", (FARPROC*)&pldap_get_dnW },
+        { "ldap_value_free_len", (FARPROC*)&pldap_value_free_len },
+        { "ldap_next_attributeW", (FARPROC*)&pldap_next_attributeW },
+        { "ldap_msgfree", (FARPROC*)&pldap_msgfree },
+        { "ldap_memfree", (FARPROC*)&pldap_memfree },
+        { "ldap_search_sW", (FARPROC*)&pldap_search_sW },
+        { "ber_free", (FARPROC*)&pber_free}
+    };
+
+    for (size_t i = 0; i < sizeof(functions) / sizeof(functions[0]); i++) {
+        *functions[i].ptr = GetProcAddress(hWldap32, functions[i].name);
+        if (*functions[i].ptr == NULL) {
+            printf("[!] Could not resolve function address for %s. Error: %d\n",
+                functions[i].name, GetLastError());
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
 int wmain(int argc, wchar_t** argv, wchar_t** envp)
 {
+
+    if (!ResolveNetApiFunctions())
+    {
+        return 1;
+    }
+
+    if (!ResolveWLdapFunctions()) {
+        return 1;
+    }
 
     Local local = { .MachineName = { 0 }, .Username = { 0 } };
     Domain domain = { .FQDN = { 0 }, .TLD = { 0 }, .SLD = { 0 }, .DC = { 0 } };
     LDAPSession ldSession = { .ld = NULL, .version = LDAP_VERSION3, .result = NULL};
+
 
 
     if (!GetVariableValueFromName(&envp, L"COMPUTERNAME", &local.MachineName))
@@ -310,7 +447,7 @@ int wmain(int argc, wchar_t** argv, wchar_t** envp)
     }
     else {
         wprintf(L"[+] DomainController: %ls \n", domain.DC);
-        GetDomainSites(domain.DC);
+        //GetDomainSites(domain.DC);
     }
 
     if (!BindLdap(domain.FQDN, &ldSession.ld, ldSession.version, &ldSession.result)) {
@@ -326,10 +463,12 @@ int wmain(int argc, wchar_t** argv, wchar_t** envp)
 
     GetLocalMachineGroupMemberships(&ldSession, &domain, &local);
 
+    GetDomainUsers(&ldSession, &domain);
+
 
 cleanup:
 
-    if (!ldSession.ld == NULL) ldap_unbind(ldSession.ld);  // unbind the ldap connection if one was made
+    if (!ldSession.ld == NULL) pldap_unbind(ldSession.ld);  // unbind the ldap connection if one was made
 
     getchar();  // debugging
 

@@ -1,4 +1,7 @@
-#include <windows.h>
+#define PHNT_VERSION PHNT_WINDOWS_11
+#include <phnt_windows.h>
+#include <phnt.h>
+#include <stdio.h>
 #include "Parser.h"
 
 
