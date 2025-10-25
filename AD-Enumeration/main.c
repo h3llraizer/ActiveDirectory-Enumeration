@@ -41,6 +41,8 @@ BOOL GetDomainSites(LPCWSTR domainController)
 
 BOOL ConfirmDomainJoin(LPCWSTR domainName)
 {
+    BOOL joined = FALSE;
+
     if (domainName == NULL)
     {
         wprintf(L"[!] Domain name not supplied.\n");
@@ -56,7 +58,7 @@ BOOL ConfirmDomainJoin(LPCWSTR domainName)
         return FALSE;
     }
 
-    wprintf(L"[+] Domain join status: ");
+    wprintf(L"[i] Domain join status: ");
 
     switch (joinStatus) {
     case NetSetupUnknownStatus:
@@ -70,6 +72,7 @@ BOOL ConfirmDomainJoin(LPCWSTR domainName)
         break;
     case NetSetupDomainName:
         wprintf(L"NetSetupDomainName (domain)\n");
+        joined = TRUE;
         break;
     default:
         wprintf(L"unknown value %d\n", joinStatus);
@@ -78,6 +81,8 @@ BOOL ConfirmDomainJoin(LPCWSTR domainName)
 
     if (nameBuffer)
         NetApiBufferFree(nameBuffer);
+
+    return joined;
 }
 
 void GetJoinableOUs(LPCWSTR domainController, LPCWSTR domainName)
@@ -201,33 +206,98 @@ BOOL ParseLdapMessage(LDAP* ld, LDAPMessage* res){
     return TRUE;
 }
 
+BOOL GetLocalUserGroupMemberships(LDAPSession* session, Domain* domain, Local* localInfo)
+{
+    BOOL success = FALSE;
+    // query local users' group memberships - domain users group ommitted
+    LDAPQuery localUserGroupsMemberQuery = { .base = { 0 }, .searchFilter = { 0 }, .searchAttributes = {L"memberOf"}, .response = NULL };
+
+    swprintf_s(localUserGroupsMemberQuery.base, MAX_PATH, L"DC=%ls,DC=%ls", domain->SLD, domain->TLD);  // format the domain parts - in future add handling for subdomain (e.g. branch.domain.com)
+
+    wprintf(L"[i] Query Base: %ws \n", localUserGroupsMemberQuery.base);
+
+    swprintf_s(localUserGroupsMemberQuery.searchFilter, MAX_PATH, L"(&(objectClass=user)(sAMAccountName=%ls))", localInfo->Username);
+
+    wprintf(L"[i] SearchFilter: %ls \n", localUserGroupsMemberQuery.searchFilter);
+
+    if (!SearchLdap(session->ld, localUserGroupsMemberQuery.base, localUserGroupsMemberQuery.searchFilter, localUserGroupsMemberQuery.searchAttributes, &session->result, &localUserGroupsMemberQuery.response)) {
+        goto EndOfFunction;
+    }
+
+    wprintf(L"[+] LDAP Search Successful.\n");
+
+    if (!ParseLdapMessage(session->ld, localUserGroupsMemberQuery.response))
+    {
+        goto EndOfFunction;
+    }
+
+    success = TRUE;
+
+EndOfFunction:
+    return success;
+}
+
+BOOL GetLocalMachineGroupMemberships(LDAPSession* session, Domain* domain, Local* localInfo)
+{
+    BOOL success = FALSE;
+    // query local users' group memberships - domain users group ommitted
+    LDAPQuery localMachineGroupsMemberQuery = { .base = { 0 }, .searchFilter = { 0 }, .searchAttributes = {L"memberOf"}, .response = NULL };
+
+    swprintf_s(localMachineGroupsMemberQuery.base, MAX_PATH, L"DC=%ls,DC=%ls", domain->SLD, domain->TLD);  // format the domain parts - in future add handling for subdomain (e.g. branch.domain.com)
+
+    wprintf(L"[i] Query Base: %ws \n", localMachineGroupsMemberQuery.base);
+
+    swprintf_s(localMachineGroupsMemberQuery.searchFilter, MAX_PATH, L"(&(objectClass=computer)(sAMAccountName=%ls$))", localInfo->MachineName);
+
+    wprintf(L"[i] SearchFilter: %ls \n", localMachineGroupsMemberQuery.searchFilter);
+
+    if (!SearchLdap(session->ld, localMachineGroupsMemberQuery.base, localMachineGroupsMemberQuery.searchFilter, localMachineGroupsMemberQuery.searchAttributes, &session->result, &localMachineGroupsMemberQuery.response)) {
+        goto EndOfFunction;
+    }
+
+    wprintf(L"[+] LDAP Search Successful.\n");
+
+    if (!ParseLdapMessage(session->ld, localMachineGroupsMemberQuery.response))
+    {
+        goto EndOfFunction;
+    }
+
+    success = TRUE;
+
+EndOfFunction:
+    return success;
+}
+
 int wmain(int argc, wchar_t** argv, wchar_t** envp)
 {
 
-    struct Local localInfo = { .MachineName = { 0 }, .Username = { 0 } };
-    struct Domain domain = { .FQDN = { 0 }, .TLD = { 0 }, .SLD = { 0 }, .DC = { 0 } };
-    struct LDAPSession ldSession = { .ld = NULL, .version = LDAP_VERSION3, .result = NULL};
+    Local local = { .MachineName = { 0 }, .Username = { 0 } };
+    Domain domain = { .FQDN = { 0 }, .TLD = { 0 }, .SLD = { 0 }, .DC = { 0 } };
+    LDAPSession ldSession = { .ld = NULL, .version = LDAP_VERSION3, .result = NULL};
 
 
-    if (!GetVariableValueFromName(&envp, L"COMPUTERNAME", &localInfo.MachineName))
+    if (!GetVariableValueFromName(&envp, L"COMPUTERNAME", &local.MachineName))
     {
         return 1;
     }
 
-    wprintf(L"MachineName: %ls \n", localInfo.MachineName);
+    wprintf(L"MachineName: %ls \n", local.MachineName);
 
-    if (!GetVariableValueFromName(&envp, L"USERNAME", &localInfo.Username))
+    if (!GetVariableValueFromName(&envp, L"USERNAME", &local.Username))
     {
         return 1;
     }
 
-    wprintf(L"Username: %ls \n", localInfo.Username);
+    wprintf(L"Username: %ls \n", local.Username);
 
     if (!GetDomainName(&envp, &domain.FQDN, &domain.TLD, &domain.SLD))
     {
         // add domain join status query function here as validation
         wprintf(L"[!] Machine is not domain joined.\n");
-        return 0;
+        if (!ConfirmDomainJoin(domain.FQDN))
+        {
+            return 0;
+        }
     }
 
     wprintf(L"[i] Full Domain Name: %ls \n", domain.FQDN); 
@@ -252,31 +322,14 @@ int wmain(int argc, wchar_t** argv, wchar_t** envp)
 
     getchar();
 
-    // query local users' group memberships - domain users group ommitted
-    struct LDAPQuery localUserGroupsMemberQuery = { .base = { 0 }, .searchFilter = { 0 }, .searchAttributes = {L"memberOf"}, .response = NULL};
+    GetLocalUserGroupMemberships(&ldSession, &domain, &local);
 
-    swprintf_s(localUserGroupsMemberQuery.base, MAX_PATH, L"DC=%ls,DC=%ls", domain.SLD, domain.TLD);  // format the domain parts - in future add handling for subdomain (e.g. branch.domain.com)
-    
-    wprintf(L"[i] Query Base: %ws \n", localUserGroupsMemberQuery.base);
+    GetLocalMachineGroupMemberships(&ldSession, &domain, &local);
 
-    swprintf_s(localUserGroupsMemberQuery.searchFilter, MAX_PATH, L"(&(objectClass=user)(sAMAccountName=%ls))", localInfo.Username);
-
-    wprintf(L"[i] SearchFilter: %ls \n", localUserGroupsMemberQuery.searchFilter);
-
-    if (!SearchLdap(ldSession.ld, localUserGroupsMemberQuery.base, localUserGroupsMemberQuery.searchFilter, localUserGroupsMemberQuery.searchAttributes, &ldSession.result, &localUserGroupsMemberQuery.response)) {
-        goto cleanup;
-    }
-
-    wprintf(L"[+] LDAP Search Successful.\n");
-
-    if (!ParseLdapMessage(ldSession.ld, localUserGroupsMemberQuery.response))
-    {
-        goto cleanup;
-    }
 
 cleanup:
 
-    if (!ldSession.ld == NULL) ldap_unbind(ldSession.ld);  // unbind the ldap connection if an open session was made
+    if (!ldSession.ld == NULL) ldap_unbind(ldSession.ld);  // unbind the ldap connection if one was made
 
     getchar();  // debugging
 
