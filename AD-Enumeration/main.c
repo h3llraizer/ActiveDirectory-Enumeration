@@ -269,7 +269,6 @@ EndOfFunction:
 BOOL GetLocalMachineGroupMemberships(LDAPSession* session, Domain* domain, Local* localInfo)
 {
     BOOL success = FALSE;
-    // query local users' group memberships - domain users group ommitted
     LDAPQuery localMachineGroupsMemberQuery = { .base = { 0 }, .searchFilter = { 0 }, .searchAttributes = {L"memberOf"}, .response = NULL };
 
     swprintf_s(localMachineGroupsMemberQuery.base, MAX_PATH, L"DC=%ls,DC=%ls", domain->SLD, domain->TLD);  // format the domain elements - in future add handling for subdomain (e.g. branch.domain.com)
@@ -301,7 +300,6 @@ EndOfFunction:
 BOOL GetDomainUsers(LDAPSession* session, Domain* domain)
 {
     BOOL success = FALSE;
-    // query local users' group memberships - domain users group ommitted
     LDAPQuery localMachineGroupsMemberQuery = { .base = { 0 }, .searchFilter = { 0 }, .searchAttributes = {L"sAMAccountName"}, .response = NULL };
 
     swprintf_s(localMachineGroupsMemberQuery.base, MAX_PATH, L"DC=%ls,DC=%ls", domain->SLD, domain->TLD);  // format the domain elements - in future add handling for subdomain (e.g. branch.domain.com)
@@ -412,11 +410,13 @@ int wmain(int argc, wchar_t** argv, wchar_t** envp)
     LDAPSession ldSession = { .ld = NULL, .version = LDAP_VERSION3, .result = NULL};
 
 
-
     if (!GetVariableValueFromName(&envp, L"COMPUTERNAME", &local.MachineName))
     {
         return 1;
     }
+
+    DWORD written = 0;
+    DWORD length = (DWORD)wcslen(local.MachineName);
 
     wprintf(L"MachineName: %ls \n", local.MachineName);
 
