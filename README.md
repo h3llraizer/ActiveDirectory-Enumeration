@@ -8,3 +8,10 @@ By default, the code:
 - evaluate if the machine is domain joined. If it isn't, then it will return stating so
 - given that the machine is domain joined, it will attempt to bind to the domain controller and populate the ld structure which then becomes a handle to issue queries
 - if the bind is successful, the proceeding query functions are sent and output is displayed to the console
+
+# Extra Features
+- Shared resource (e.g. File Share) enumeration
+
+
+
+

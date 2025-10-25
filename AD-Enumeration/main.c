@@ -415,17 +415,14 @@ int wmain(int argc, wchar_t** argv, wchar_t** envp)
         return 1;
     }
 
-    DWORD written = 0;
-    DWORD length = (DWORD)wcslen(local.MachineName);
-
-    wprintf(L"MachineName: %ls \n", local.MachineName);
+    wprintf(L"[i] MachineName: %ls \n", local.MachineName);
 
     if (!GetVariableValueFromName(&envp, L"USERNAME", &local.Username))
     {
         return 1;
     }
 
-    wprintf(L"Username: %ls \n", local.Username);
+    wprintf(L"[i] Username: %ls \n", local.Username);
 
     if (!GetDomainName(&envp, &domain.FQDN, &domain.TLD, &domain.SLD))
     {
@@ -441,7 +438,7 @@ int wmain(int argc, wchar_t** argv, wchar_t** envp)
     wprintf(L"[i] Secondary-Level Domain: %ls\n", domain.SLD);
     wprintf(L"[i] Top-Level Domain: %ls\n", domain.TLD);
 
-    if (!GetDomainController(&envp, &domain.DC))
+    if (!GetVariableValueFromName(&envp, &domain.DC, L"LOGONSERVER"))  // get the domain controller
     {
         wprintf(L"[!] Could not retrieve Domain Controller from Process Parameters block.\n");
     }
@@ -457,13 +454,25 @@ int wmain(int argc, wchar_t** argv, wchar_t** envp)
 
     wprintf(L"[+] LDAP bind successful\n");
 
-    getchar();
+    if (!GetLocalUserGroupMemberships(&ldSession, &domain, &local))
+    {
+        goto cleanup;
+    }
 
-    GetLocalUserGroupMemberships(&ldSession, &domain, &local);
+    if (!GetLocalMachineGroupMemberships(&ldSession, &domain, &local))
+    {
+        goto cleanup;
+    }
 
-    GetLocalMachineGroupMemberships(&ldSession, &domain, &local);
+    if (!GetDomainUsers(&ldSession, &domain))
+    {
+        goto cleanup;
+    }
 
-    GetDomainUsers(&ldSession, &domain);
+    if (!EnumerateShares(domain.FQDN))
+    {
+        goto cleanup;
+    }
 
 
 cleanup:

@@ -1,15 +1,9 @@
 #pragma once
 #define PHNT_VERSION PHNT_WINDOWS_11
 #include <phnt_windows.h>
-#include <winldap.h>
-#include <wtsapi32.h>
-#include <dsgetdc.h>
-#include <winber.h>
 #include <stdio.h>
 #include "AD_DS_defs.h"
 #include "Other.h"
-
-//#pragma comment(lib, "Wtsapi32.lib")
 
 extern PFN_NetShareEnum pNetShareEnum;
 extern PFN_NetApiBufferFree pNetApiBufferFree;
@@ -17,6 +11,7 @@ extern PFN_NetApiBufferFree pNetApiBufferFree;
 
 BOOL EnumerateShares(LPWSTR server)
 {
+    wprintf(L"[*] Enumerating shares for %ls \n", server);
     LPSHARE_INFO_1 pBuf = NULL;
 
     DWORD entriesRead = 0, totalEntries = 0, resume = 0;
@@ -26,22 +21,22 @@ BOOL EnumerateShares(LPWSTR server)
     {
         for (DWORD i = 0; i < entriesRead; i++) {
             DWORD shareType = pBuf[i].shi1_type;
-            wprintf(L"Share: %ls Remark: %ls Type: ", pBuf[i].shi1_netname, pBuf[i].shi1_remark);
+            wprintf(L"\tShare: %ls Remark: %ls Type: ", pBuf[i].shi1_netname, pBuf[i].shi1_remark);
             switch (shareType) {
             case STYPE_DISKTREE:
-                wprintf(L"Disk Drive");
+                wprintf(L"\tDisk Drive");
                 break;
             case STYPE_PRINTQ:
-                wprintf(L"Printer");
+                wprintf(L"\tPrinter");
                 break;
             case STYPE_DEVICE:
-                wprintf(L"Communications ");
+                wprintf(L"\tCommunications ");
                 break;
             case STYPE_IPC:
-                wprintf(L"IPC ");
+                wprintf(L"\tIPC ");
                 break;
             default:
-                wprintf(L"Unknown");
+                wprintf(L"\tUnknown");
             }
 
             wprintf(L"\n");
@@ -50,7 +45,7 @@ BOOL EnumerateShares(LPWSTR server)
         pNetApiBufferFree(pBuf);
     }
     else {
-        wprintf(L"Error getting shares: %d \n", dwResult);
+        wprintf(L"[!] Error getting shares: %d \n", dwResult);
     }
 }
 
