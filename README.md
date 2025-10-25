@@ -10,8 +10,14 @@ By default, the code:
 - if the bind is successful, the proceeding query functions are sent and output is displayed to the console
 
 # Extra Features
-- Shared resource (e.g. File Share) enumeration
+- Shared resource (e.g. File Share) enumeration - this feature does not always require LDAP binding (most shared resources are powered by SMB)
 
 
 ![Alt text for the image](enum.png)
 
+# Upcoming
+- Forest enumeration
+- Subdomain handling
+- Compile for DLL
+- No CRT dependancy
+- JSON formatting

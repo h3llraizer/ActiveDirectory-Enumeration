@@ -444,8 +444,9 @@ int wmain(int argc, wchar_t** argv, wchar_t** envp)
     }
     else {
         wprintf(L"[+] DomainController: %ls \n", domain.DC);
-        //GetDomainSites(domain.DC);
     }
+
+    //GetDomainSites(domain.DC); // enumerate the domain sites
 
     if (!BindLdap(domain.FQDN, &ldSession.ld, ldSession.version, &ldSession.result)) {
         wprintf(L"[!] LDAP Bind failed. Error: %lu \n", ldSession.result);
