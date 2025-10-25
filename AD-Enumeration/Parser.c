@@ -1,6 +1,42 @@
 #include <windows.h>
 #include "Parser.h"
 
+
+BOOL GetVariableValueFromName(wchar_t*** envp, wchar_t* VariableName, wchar_t* Value)
+{
+    BOOL machineNameFound = FALSE;
+    for (WCHAR** env = *envp; *env != 0; env++)
+    {
+        wchar_t envVar[MAX_PATH] = { 0 };
+        int varLength = 0;
+        for (int i = 0; (*env)[i] != L'='; i++)
+        {
+            envVar[i] = (*env)[i];
+            varLength++;
+        }
+
+        envVar[varLength] = L'\0';  // add NULL-terminator
+
+        if (wcscmp(envVar, VariableName) == 0)
+        {
+            machineNameFound = TRUE;
+            int dcLength = 0;
+            for (int i = varLength + 1; (*env)[i] != L'\0'; i++)
+            {
+                Value[dcLength] = (*env)[i];
+                dcLength++;
+            }
+
+            Value[dcLength + 1] = L'\0';
+
+            return machineNameFound;
+        }
+
+    }
+
+    return machineNameFound;
+}
+
 BOOL GetDomainController(wchar_t*** envp, wchar_t* DC)
 {
     BOOL dcFound = FALSE;
@@ -67,7 +103,7 @@ BOOL GetDomainName(wchar_t*** envp, wchar_t* FQDN, wchar_t* TLD, wchar_t* SLD)
             int tldLength = 0;
             for (int i = 0; FQDN[i] != L'\0'; i++)
             {
-                if (FQDN[i] == L'.')  // . (dot) in the
+                if (FQDN[i] == L'.')
                 {
                     domainJoined = TRUE;
                 }

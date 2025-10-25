@@ -118,6 +118,14 @@ int EnumActiveLoginSessionsViaWTS()
     return 0;
 }
 
+//PWCHAR filter = L"(objectClass=computer)";
+//PWCHAR attrs[] = { L"cn", L"dNSHostName", L"operatingSystem", L"operatingSystemVersion", L"lastLogonTimestamp", L"userAccountControl", NULL};
+
+    //if (!EnumerateShares(DC))
+    //{
+    //    goto cleanup;
+    //}
+
 // void GetLANWorkstations() {
 //     LPBYTE bufPtr = NULL;
 //     DWORD entriesRead = 0, totalEntries = 0;

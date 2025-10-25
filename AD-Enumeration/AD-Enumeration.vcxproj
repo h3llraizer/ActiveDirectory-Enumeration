@@ -132,6 +132,7 @@
   <ItemGroup>
     <ClInclude Include="Other.h" />
     <ClInclude Include="Parser.h" />
+    <ClInclude Include="Structs.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
