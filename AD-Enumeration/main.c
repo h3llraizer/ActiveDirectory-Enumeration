@@ -361,7 +361,6 @@ BOOL ResolveWLdapFunctions()
 
 int wmain(int argc, wchar_t** argv, wchar_t** envp)
 {
-
     if (!ResolveNetApiFunctions())
     {
         return 1;
@@ -391,6 +390,8 @@ int wmain(int argc, wchar_t** argv, wchar_t** envp)
     }
 
     wprintf(L"[i] Username: %ls \n", local.Username);
+
+    getchar();
 
     if (!GetDomainName(&envp, &domain.FQDN, &domain.TLD, &domain.SLD))
     {
